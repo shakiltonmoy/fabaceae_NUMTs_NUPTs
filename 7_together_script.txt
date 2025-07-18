@@ -1,0 +1,23 @@
+# Script to extract depth values from Mosdepth output and assemble into a single table.  
+# Change "numts" to "nupts" if processing NUPTs instead of NUMTs.  
+
+#!/bin/bash
+
+#copy numts files (This one is for NUMTs. If we use NUPTs then instead of numts it needs to be changed to nupts)
+cp ../../Minimap2/numts_start_region.regions.bed.gz ../../Minimap2/numts_stop_region.regions.bed.gz .
+
+# Step 1: Create header row
+for f in numts_start_region.regions.bed.gz numts_stop_region.regions.bed.gz mosdepth_region_*.regions.bed.gz; do
+echo -n "${f#mosdepth_region_}" | sed 's/\.regions\.bed\.gz//' | tr -d '\n'
+echo -ne "\t"
+done | sed 's/\t$//' > assembled_columns.txt
+echo >> assembled_columns.txt
+
+# Step 2: Extract 5th column from each file and paste side by side
+paste $(for f in numts_start_region.regions.bed.gz numts_stop_region.regions.bed.gz mosdepth_region_*.regions.bed.gz; do
+zcat "$f" | awk '{print $5}' > "$f.col"
+echo "$f.col"
+done) >> assembled_columns.txt
+
+# Step 3: Clean up
+rm numts_start_region.regions.bed.gz.col numts_stop_region.regions.bed.gz.col mosdepth_region_*.regions.bed.gz.col

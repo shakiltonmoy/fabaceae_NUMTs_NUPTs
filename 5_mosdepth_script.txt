@@ -1,0 +1,28 @@
+#This mosdepth.sh script calculates read coverage around NUMTs and NUPTs start/stop regions using Mosdepth
+#No edits needed across species
+
+echo "Activating mosdepth..."
+source activate mosdepth
+
+echo "Generating start and stop NUMTs regions..."
+awk 'BEGIN {OFS="\t"} {print $1, $2-200, $2+50, "NUMTs" NR}' NUMTs_chromosomes.bed > start_numts.bed
+awk 'BEGIN {OFS="\t"} {print $1, $3-50, $3+200, "NUMTs" NR}' NUMTs_chromosomes.bed > stop_numts.bed
+
+echo "Running mosdepth for NUMTs start regions..."
+mosdepth --by start_numts.bed --thresholds 1,10,20,30,40,50,100 --threads 22 numts_start_region chromosome_alignment_sorted.bam
+
+echo "Running mosdepth for NUMTs stop regions..."
+mosdepth --by stop_numts.bed --thresholds 1,10,20,30,40,50,100 --threads 22 numts_stop_region chromosome_alignment_sorted.bam
+
+echo "Generating start and stop NUPTs regions..."
+awk 'BEGIN {OFS="\t"} {print $1, $2-200, $2+50, "NUPTs" NR}' NUPTs_chromosomes.bed > start_nupts.bed
+awk 'BEGIN {OFS="\t"} {print $1, $3-50, $3+200, "NUPTs" NR}' NUPTs_chromosomes.bed > stop_nupts.bed
+
+echo "Running mosdepth for NUPTs start regions..."
+mosdepth --by start_nupts.bed --thresholds 1,10,20,30,40,50,100 --threads 8 nupts_start_region chromosome_alignment_sorted.bam
+
+echo "Running mosdepth for NUPTs stop regions..."
+mosdepth --by stop_nupts.bed --thresholds 1,10,20,30,40,50,100 --threads 8 nupts_stop_region chromosome_alignment_sorted.bam
+
+echo "Deactivating mosdepth..."
+conda deactivate

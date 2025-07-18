@@ -1,0 +1,48 @@
+# This blast.sh script is universal for all species to extract NUMTs and NUPTs.
+# It aligns organellar genomes (mitochondrial and plastid) to the nuclear genome and extracts regions with: alignment length ≥ 100 bp and identity ≥ 90%
+# No species-specific changes are required unless file names differ.
+
+# Create BLAST database from nuclear genome
+makeblastdb -in nuclear_genome.fasta -dbtype nucl
+
+# Process NUMTs (Mitochondrial sequences in nuclear genome)
+echo "Processing NUMTs..."
+blastn   -num_threads  2  -query   mitochondrion.fasta    -db  nuclear_genome.fasta    -outfmt 6    -num_alignments   100   -out    Mt_nuc.blast.out	# Run BLAST
+
+awk '$4>=100' Mt_nuc.blast.out | awk '$3>=90' > 100bp_Mt_nuc.blast.out	 # Filter: alignment length ≥100 bp and identity ≥90%
+
+mkdir total_length_Numts	# Create output directory
+
+# Extract and format coordinates (chrom, start, end)
+cut -f 2,9,10 100bp_Mt_nuc.blast.out | awk '{print $2 "\t" $3 "\t" $1}' > total_length_Numts/table_Numts.txt
+
+# Normalize coordinates: ensure start < end
+awk '{if ($2 > $1) print}' total_length_Numts/table_Numts.txt > total_length_Numts/table_Numts1.txt
+awk '{if ($1 > $2) print $2 "\t" $1 "\t" $3}' total_length_Numts/table_Numts.txt > total_length_Numts/table_Numts2.txt
+
+# Merge and sort the NUMTs
+paste -d '\n' total_length_Numts/table_Numts1.txt  total_length_Numts/table_Numts2.txt > total_length_Numts/merged_table_Numts.txt
+sort -n -k 1 total_length_Numts/merged_table_Numts.txt > total_length_Numts/sorted_table_Numts.txt
+
+echo "NUMTs processing complete!"
+
+# Process NUPTs (Plastid sequences in nuclear genome)
+echo "Processing NUPTs..."
+blastn   -num_threads  2  -query   plastid.fasta    -db  nuclear_genome.fasta    -outfmt 6    -num_alignments   100   -out    Pst_nuc.blast.out
+awk '$4>=100' Pst_nuc.blast.out | awk '$3>=90' > 100bp_Pst_nuc.blast.out	# Filter: alignment length ≥100 bp and identity ≥90%
+
+mkdir total_length_Nupts	# Create output directory
+
+# Extract and format coordinates
+cut -f 2,9,10 100bp_Pst_nuc.blast.out | awk '{print $2 "\t" $3 "\t" $1}' > total_length_Nupts/table_Nupts.txt
+
+# Normalize coordinates: ensure start < end
+awk '{if ($2 > $1) print}' total_length_Nupts/table_Nupts.txt > total_length_Nupts/table_Nupts1.txt
+awk '{if ($1 > $2) print $2 "\t" $1 "\t" $3}' total_length_Nupts/table_Nupts.txt > total_length_Nupts/table_Nupts2.txt
+
+# Merge and sort
+paste -d '\n' total_length_Nupts/table_Nupts1.txt  total_length_Nupts/table_Nupts2.txt > total_length_Nupts/merged_table_Nupts.txt
+sort -n -k 1 total_length_Nupts/merged_table_Nupts.txt > total_length_Nupts/sorted_table_Nupts.txt
+echo "NUPTs processing complete!"
+echo "Processing completed in $(pwd)"
+

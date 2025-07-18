@@ -1,0 +1,39 @@
+# genome.sh script to download genome data and extract chromosomes using NCBI Datasets and seqtk.  
+# Edit Step 2 with the correct genome accession link and Step 5 if chromosome headers start with 'NC' instead of 'CM'.  
+
+# Step 2: Activate conda and download genome sequence
+echo "Activating conda environment..."
+source /home/cdb3ny/anaconda3/etc/profile.d/conda.sh
+conda activate ncbi_datasets
+
+echo "Downloading genome sequence..."
+datasets download genome accession GCA_027886165.1 --include gff3,rna,cds,protein,genome,seq-report
+
+# Deactivate conda environment
+echo "Deactivating conda environment..."
+conda deactivate
+
+# Step 3: Unzip the downloaded file
+echo "Unzipping downloaded file..."
+unzip ncbi_dataset.zip
+
+# Step 4: Move files and clean up
+echo "Organizing files..."
+cp ncbi_dataset/data/*/* .
+rm -rf ncbi_dataset ncbi_dataset.zip
+
+# Step 5: Extract chromosome names
+echo "Extracting chromosome list..."
+grep "^>CM" G*.fna | cut -d " " -f1 | tr -d ">" | tr '\n' ' ' > chromosome_list.txt
+
+# Step 6: Isolate chromosomes
+echo "Isolating chromosomes..."
+mkdir -p Extraction
+
+for i in $(cat chromosome_list.txt)
+do
+echo $i > Extraction/$i.txt
+seqtk subseq G*.fna Extraction/$i.txt > Extraction/$i.fasta
+done 
+
+echo "Process completed successfully!"

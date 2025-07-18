@@ -1,0 +1,81 @@
+# This script is applicable to all species for extracting NUMT and NUPT data.
+# Before running, edit the following:
+#  1. Update the chromosome names in the CHROMOSOMES array (species-specific).
+#  2. Change the chromosome prefix (e.g., CM/NC/Chr) in three places:
+#     - CHROMOSOMES array
+#     - NUMT summary section (file prefix)
+#     - NUPT summary section (file prefix)
+
+# Define chromosome names (edit according to the target species)
+CHROMOSOMES=(CM051125.1 CM051126.1 CM051127.1 CM051128.1 CM051129.1 CM051130.1 CM051131.1 CM051132.1)
+
+echo "Processing NUMTs..."
+# Loop through each chromosome to process NUMTs
+for i in "${CHROMOSOMES[@]}"
+do
+# Extract entries matching the chromosome name from the sorted NUMTs table
+# Merge overlapping or adjacent intervals using awk
+grep -w $i total_length_Numts/sorted_table_Numts.txt |  awk 'BEGIN{FS="\t";OFS="\t";prev_end=-1}{if(NR==1){start=$1;prev_end=$2}else{if($1<=prev_end){if($2>prev_end){prev_end=$2}}else{print start,prev_end;start=$1;prev_end=$2}}}END{if(NR>1){print start,prev_end}}' | grep -v '^ \t' > total_length_Numts/"$i"_count.txt
+# Calculate the total length of NUMTs, print each region's length, and summarize
+awk '{ total += $2 - $1 + 1; print $1 "-" $2 ": Length = " $2 - $1 + 1 } END { print "Total Length = " total }' total_length_Numts/"$i"_count.txt > total_length_Numts/$i.txt
+done
+
+echo "Chromosomal scale NUMTs Stats..."
+
+# Write header to summary file for NUMTs
+echo -e "Chromosome\tTotal_Length\tTotal_NUMTs\tBiggest_NUMT\tAverage" > total_length_Numts/Summary_Stat_NUMTs_Chromosomal_scale.txt
+
+#edit the chromosomes file name (Change required!!!)
+# Loop through NUMTs chromosome files to extract summary statistics
+for file in $(ls total_length_Numts/CM*.txt | grep -v '_count');
+do
+filename=$(basename "$file" .txt) # Extract chromosome name
+last_value=$(tail -n 1 "$file" | awk '{print $NF}')  # Get total length from last line
+max=$(head -n -1 "$file" | awk '{if ($NF > max) max=$NF} END {print max}')  # Find biggest NUMT
+avg=$(head -n -1 "$file" | awk '{sum+=$NF; count++} END {if (count > 0) print sum/count; else print 0}')  # Calculate average NUMT length
+total_numts=$(head -n -1 "$file" | wc -l)  # Count total NUMTs, excluding the last line # Count total number of NUMT regions
+
+# Append stats to summary file
+echo -e "$filename\t$last_value\t$total_numts\t$max\t$avg" >> total_length_Numts/Summary_Stat_NUMTs_Chromosomal_scale.txt
+done
+
+echo "NUMTs processing complete!"
+
+# Process NUPTs (same structure as above)
+echo "Processing NUPTs..."
+
+# Loop through each chromosome to process NUPTs
+for i in "${CHROMOSOMES[@]}"
+do
+# Extract entries and merge overlapping/adjacent NUPT intervals
+grep -w $i total_length_Nupts/sorted_table_Nupts.txt |  awk 'BEGIN{FS="\t";OFS="\t";prev_end=-1}{if(NR==1){start=$1;prev_end=$2}else{if($1<=prev_end){if($2>prev_end){prev_end=$2}}else{print start,prev_end;start=$1;prev_end=$2}}}END{if(NR>1){print start,prev_end}}' | grep -v '^ \t' > total_length_Nupts/"$i"_count.txt
+# Calculate total length and print region info
+awk '{ total += $2 - $1 + 1; print $1 "-" $2 ": Length = " $2 - $1 + 1 } END { print "Total Length = " total }' total_length_Nupts/"$i"_count.txt > total_length_Nupts/$i.txt 
+done
+
+echo "Chromosomal scale NUPTs Stats..."
+
+#Write header to summary file for NUPTs
+echo -e "Chromosome\tTotal_Length\tTotal_NUPTs\tBiggest_NUPT\tAverage" > total_length_Nupts/Summary_Stat_NUPTs_Chromosomal_scale.txt
+
+#edit the chromosomes file name (Change required!!!)
+#Loop through NUPTs chromosome files to extract summary statistics
+for file in $(ls total_length_Nupts/CM*.txt | grep -v '_count');
+do
+filename=$(basename "$file" .txt)
+last_value=$(tail -n 1 "$file" | awk '{print $NF}')  # Get total length from last line 
+max=$(head -n -1 "$file" | awk '{if ($NF > max) max=$NF} END {print max}')  # Find biggest NUPT
+avg=$(head -n -1 "$file" | awk '{sum+=$NF; count++} END {if (count > 0) print sum/count; else print 0}')  # Calculate average NUPT length
+total_nupts=$(head -n -1 "$file" | wc -l)  # Count total NUPTs, excluding the last line # Count total number of NUPT regions
+
+# Append stats to summary file
+echo -e "$filename\t$last_value\t$total_nupts\t$max\t$avg" >> total_length_Nupts/Summary_Stat_NUPTs_Chromosomal_scale.txt
+done
+
+echo "NUPTs processing complete!"
+
+# Create output directory for further analysis (e.g., minimap2 outputs)
+mkdir Minimap2
+
+echo "All processing completed successfully!"
+

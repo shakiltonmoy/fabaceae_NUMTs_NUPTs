@@ -1,0 +1,71 @@
+#This sra.sh script downloads SRA reads, converts to FASTQ, aligns them using Minimap2, and prepares NUMTs/NUPTs bed files
+#One change required in SRR accessions name for different run in different species
+
+#sra files downloading script; run it at Minimap2 folder
+echo "Starting SRA tasks ..."
+for acc in SRR6656266 SRR6656267 SRR6656268 SRR6656269 SRR6656270 SRR6656271 SRR6656272 SRR6656273 SRR6656274 SRR6656275 SRR6656276 SRR6656277 SRR6656278 SRR6656279 SRR6656280 SRR6656281 SRR6656282 SRR6656283 SRR6656284 SRR6656285 SRR6656286 SRR6656287 SRR6656288 SRR6656289 SRR6656290 SRR6656291 SRR6656292 SRR6656293 SRR6656294 SRR6656295 SRR6656296 SRR6656297 SRR6656298 SRR6656299 SRR6656300 SRR6656301 SRR6656302 SRR6656303 SRR6656304 SRR6656305 SRR6656306 SRR6656307 SRR6656308 SRR6656309 SRR6656310 SRR6656311 SRR6656312 SRR6656313 SRR6656314 SRR6656315
+ 
+
+do
+echo "Downloading $acc..."
+/Programs/sratoolkit.3.0.7-ubuntu64/bin/prefetch --max-size 500G "$acc" --output-file "${acc}.sra"
+
+echo "Converting $acc to FASTQ..."
+/Programs/sratoolkit.3.0.7-ubuntu64/bin/fasterq-dump "${acc}.sra" --outdir .
+    
+echo "Merging $acc into pacbio.fastq..."
+cat "${acc}.fastq" >> pacbio.fastq
+    
+echo "Cleaning up $acc..."
+rm -r "${acc}.fastq" "${acc}.sra"
+    
+echo "$acc processing completed!"
+done
+
+echo "All SRA tasks completed successfully!"
+
+
+#Create the subdirectory 'bedfiles' if it doesn't exist
+mkdir -p bedfiles
+
+echo "Processing NUMTs bed files..."
+for file in ../total_length_Numts/*_count.txt
+do
+chr_id=$(basename "$file" _count.txt)  # Extract chromosome ID
+awk -v id="$chr_id" '{print id, $1, $2}' "$file" > "bedfiles/${chr_id}_NUMTs.bed"
+done
+
+# Combine all NUMTs bed files inside 'bedfiles' and save final merged file in 'bedfiles'
+cat bedfiles/*_NUMTs.bed > bedfiles/NUMTs_genome.bed
+awk 'BEGIN {OFS="\t"} {print $1, $2, $3}' bedfiles/NUMTs_genome.bed > NUMTs_chromosomes.bed
+
+echo "Processing NUPTs bed files..."
+for file in ../total_length_Nupts/*_count.txt
+do
+chr_id=$(basename "$file" _count.txt)  # Extract chromosome ID
+awk -v id="$chr_id" '{print id, $1, $2}' "$file" > "bedfiles/${chr_id}_NUPTs.bed"
+done
+
+# Combine all NUPTs bed files inside 'bedfiles' and save final merged file in 'bedfiles'
+cat bedfiles/*_NUPTs.bed > bedfiles/NUPTs_genome.bed
+awk 'BEGIN {OFS="\t"} {print $1, $2, $3}' bedfiles/NUPTs_genome.bed > NUPTs_chromosomes.bed
+
+echo "Bedfiles Processing completed!"
+
+
+
+echo "Indexing genome with Minimap2..."
+minimap2 -d genome.mmi ../nuclear_genome.fasta
+
+echo "Aligning PacBio reads..."
+minimap2 -t 8 -a genome.mmi pacbio.fastq > chromosome_alignment.sam
+
+echo "Converting SAM to BAM..."
+samtools view -bS chromosome_alignment.sam > chromosome_alignment.bam
+
+echo "Sorting BAM file..."
+samtools sort -o chromosome_alignment_sorted.bam chromosome_alignment.bam
+
+echo "Indexing BAM file..."
+samtools index -c chromosome_alignment_sorted.bam
+
