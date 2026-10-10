@@ -1,0 +1,56 @@
+#Bauhinia variegate NUMT/NUPT Analysis Pipeline
+
+# Server: Bailey_Server, NMSU
+#Working Directory:/media/Scratch8TB/CLG2023/shakil/NMSU
+
+#Step 1: Create a working directory 
+#depends on species name
+mkdir Bauhinia_variegata
+
+#Step 2: Prepare genome data
+#Edit genome.sh: change the genome download link and adjust 'CM/NC' pattern (2 changes)
+nano genome.sh
+./genome.sh
+
+#Concatenate chromosome FASTA files into one nuclear genome
+cat CM*.fasta >> ../nuclear_genome.fasta
+
+# Step 3: Run BLAST to identify NUMTs/NUPTs
+# No script edits needed
+nano blast.sh
+./blast.sh
+
+# Step 4: Analyze organellar insertions
+# Edit organellar_DNA.sh: update chromosome names and CM/NC pattern (3 changes total)
+#CHROMOSOMES=(CM039426.1 CM039427.1 CM039428.1 CM039429.1 CM039430.1 CM039431.1 CM039432.1 CM039433.1 CM039434.1 CM039435.1 CM039436.1 CM039437.1 CM039438.1 CM039439.1)
+
+nano organellar_DNA.sh
+./organellar_DNA.sh
+
+# Step 5: Move to Minimap2 folder and download SRA reads
+cd ../Minimap2
+# Edit sra.sh: replace with correct SRR numbers (1 change)
+nano sra.sh
+nohup ./sra.sh
+
+#Step 6: Run mosdepth.sh to count the coverage of NUMT/NUPT regions
+nano mosdepth.sh
+./mosdepth.sh
+
+#Step 7: Count average depth coverage across genome
+samtools depth chromosome_alignment_sorted.bam | awk '{sum+=$3} END {print sum/NR}' > depth.txt
+
+#Step 8: Create a directory for coverage/statistical analysis
+cd ..
+mkdir Stat
+cd Stat
+
+#Step 9: Generate 1000 random datasets for coverage stats using Mosdepth
+# Edit stat.sh if NUMTs/NUPTs numbers differ per species
+nano stat.sh
+nohup ./stat.sh
+
+#Step 10: Combine all coverage outputs into a single table
+./together.sh
+
+#Step 11: Perform statistical analysis in R 
